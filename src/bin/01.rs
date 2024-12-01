@@ -5,7 +5,7 @@ use code_timing_macros::time_snippet;
 use const_format::concatcp;
 use adv_code_2024::*;
 
-const DAY: &str = "NN"; // TODO: Fill the day
+const DAY: &str = "01";
 const INPUT_FILE: &str = concatcp!("input/", DAY, ".txt");
 
 const TEST: &str = "\
@@ -15,7 +15,7 @@ const TEST: &str = "\
 1   3
 3   9
 3   3
-"; // TODO: Add the test input
+";
 
 fn main() -> Result<()> {
     start_day(DAY);
@@ -23,14 +23,36 @@ fn main() -> Result<()> {
     //region Part 1
     println!("=== Part 1 ===");
 
-    fn part1<R: BufRead>(reader: R) -> Result<usize> {
+    fn part1<R: BufRead>(reader: R) -> Result<i32> {
         // TODO: Solve Part 1 of the puzzle
-        let answer = reader.lines().flatten().count();
+        let (mut first, mut second) = reader.lines().fold((vec![],vec![]), |(mut first, mut second), line| {
+            match line {
+                Result::Ok(line) => {
+                    let nums: Vec<i32> = line.split_whitespace().map(|n| n.parse().unwrap()).collect();
+                    assert!(nums.len() == 2);
+                    first.push(nums[0]);
+                    second.push(nums[1]);
+                    (first, second)
+                }
+                Result::Err(_) => {
+                    panic!("failed to parse")
+                }
+            }
+        });
+        first.sort_unstable();
+        second.sort_unstable();
+        let answer = first.iter().zip(second.iter()).fold(0, |acc, (a,b)| {
+            if a < b {
+                acc + b-a
+            } else {
+                acc + a-b
+            }
+        });
         Ok(answer)
     }
 
     // TODO: Set the expected answer for the test input
-    assert_eq!(0, part1(BufReader::new(TEST.as_bytes()))?);
+    assert_eq!(11, part1(BufReader::new(TEST.as_bytes()))?);
 
     let input_file = BufReader::new(File::open(INPUT_FILE)?);
     let result = time_snippet!(part1(input_file)?);
