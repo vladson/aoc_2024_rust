@@ -4,7 +4,6 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use code_timing_macros::time_snippet;
 use const_format::concatcp;
-use itertools::Itertools;
 use adv_code_2024::*;
 
 const DAY: &str = "01";
@@ -25,8 +24,8 @@ fn main() -> Result<()> {
     //region Part 1
     println!("=== Part 1 ===");
 
-    fn part1<R: BufRead>(reader: R) -> Result<i32> {
-        let (mut first, mut second) = reader.lines().fold((vec![],vec![]), |(mut first, mut second), line| {
+    fn parse_input<R: BufRead>(reader: R) -> (Vec<i32>, Vec<i32>) {
+        reader.lines().fold((vec![],vec![]), |(mut first, mut second), line| {
             match line {
                 Result::Ok(line) => {
                     let nums: Vec<i32> = line.split_whitespace().map(|n| n.parse().unwrap()).collect();
@@ -39,7 +38,11 @@ fn main() -> Result<()> {
                     panic!("failed to parse")
                 }
             }
-        });
+        })
+    }
+
+    fn part1<R: BufRead>(reader: R) -> Result<i32> {
+        let (mut first, mut second) = parse_input(reader);
         first.sort_unstable();
         second.sort_unstable();
         let answer = first.iter().zip(second.iter()).fold(0, |acc, (a,b)| {
@@ -62,20 +65,7 @@ fn main() -> Result<()> {
     println!("\n=== Part 2 ===");
 
     fn part2<R: BufRead>(reader: R) -> Result<i32> {
-        let (mut first, mut second) = reader.lines().fold((vec![],vec![]), |(mut first, mut second), line| {
-            match line {
-                Result::Ok(line) => {
-                    let nums: Vec<i32> = line.split_whitespace().map(|n| n.parse().unwrap()).collect();
-                    assert!(nums.len() == 2);
-                    first.push(nums[0]);
-                    second.push(nums[1]);
-                    (first, second)
-                }
-                Result::Err(_) => {
-                    panic!("failed to parse")
-                }
-            }
-        });
+        let (first, second) = parse_input(reader);
         let freqs = second.iter().fold(HashMap::new(), |mut freqs, e| {
             *freqs.entry(e).or_insert(0) += 1;
             freqs
