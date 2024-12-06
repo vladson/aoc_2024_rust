@@ -105,29 +105,33 @@ fn parse_update(input: &str) -> IResult<&str, Update> {
 fn parse_number(input: &str) -> IResult<&str, u32> {
     map_res(digit1, str::parse)(input)
 }
+fn build_rules(pairs: Vec<Pair>) -> HashMap<u32, Rule> {
+    let mut page_rules = HashMap::new();
+    for (a, b) in pairs {
+        page_rules
+            .entry(a)
+            .and_modify(|r: &mut Rule| r.constraints.push(b))
+            .or_insert(Rule::from_constraint(b));
+        page_rules
+            .entry(b)
+            .and_modify(|r| (*r).indegree += 1)
+            .or_insert(Rule::starting_1());
+    }
+    page_rules
+}
+
 fn parse_pair(input: &str) -> IResult<&str, Pair> {
     separated_pair(parse_number, char('|'), parse_number)(input)
 }
-
 fn main() -> Result<()> {
+
     start_day(DAY);
 
     //region Part 1
     println!("=== Part 1 ===");
-
     fn part1<R: BufRead>(reader: R) -> Result<usize> {
         let (pairs, updates) = parse_input(reader);
-        let mut page_rules = HashMap::new();
-        for (a, b) in pairs {
-            page_rules
-                .entry(a)
-                .and_modify(|r: &mut Rule| r.constraints.push(b))
-                .or_insert(Rule::from_constraint(b));
-            page_rules
-                .entry(b)
-                .and_modify(|r| (*r).indegree += 1)
-                .or_insert(Rule::starting_1());
-        }
+        let mut page_rules = build_rules(pairs);
         let ans: u32 = updates
             .iter()
             .filter(|update| {
@@ -161,17 +165,56 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
-    // fn part2<R: BufRead>(reader: R) -> Result<usize> {
-    //     Ok(0)
-    // }
-    //
-    // assert_eq!(0, part2(BufReader::new(TEST.as_bytes()))?);
-    //
-    // let input_file = BufReader::new(File::open(INPUT_FILE)?);
-    // let result = time_snippet!(part2(input_file)?);
-    // println!("Result = {}", result);
+    println!("\n=== Part 2 ===");
+
+    fn part2<R: BufRead>(reader: R) -> Result<usize> {
+        let (pairs, updates) = parse_input(reader);
+        let mut page_rules = build_rules(pairs);
+        let bad: Vec<Update> = updates
+            .into_iter()
+            .filter(|update| {
+                let mut upto = vec![];
+                for u in update.iter() {
+                    let broken = page_rules
+                        .entry(*u)
+                        .or_insert(Rule::starting_1())
+                        .constraints
+                        .iter()
+                        .filter(|c| upto.contains(c))
+                        .count()
+                        > 0;
+                    if broken {
+                        return true;
+                    }
+                    upto.push(u);
+                }
+                false
+            }).collect();
+        let ans: u32 = bad.into_iter().map(|mut update| {
+            update.sort_by(|a, b| {
+                let a_blocked = page_rules.entry(*a)
+                    .or_insert(Rule::starting_1())
+                    .constraints.contains(b);
+                let b_blocked = page_rules.entry(*b)
+                    .or_insert(Rule::starting_1())
+                    .constraints.contains(a);
+                match (a_blocked, b_blocked) {
+                    (true, false) => std::cmp::Ordering::Greater,
+                    (false, true) => std::cmp::Ordering::Less,
+                    (false, false) => std::cmp::Ordering::Equal,
+                    _ => panic!("how?")
+                }
+            });
+            update
+        }).map(|u| u[u.len()/2]).sum();
+        Ok(ans as usize)
+    }
+
+    assert_eq!(123, part2(BufReader::new(TEST.as_bytes()))?);
+
+    let input_file = BufReader::new(File::open(INPUT_FILE)?);
+    let result = time_snippet!(part2(input_file)?);
+    println!("Result = {}", result);
     //endregion
 
     Ok(())
