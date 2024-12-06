@@ -12,6 +12,10 @@ const TEST: &str = "\
 <TEST-INPUT>
 "; // TODO: Add the test input
 
+fn parse_input<R: BufRead>(reader: R) -> usize {
+    reader.lines().map_while(Result::ok).filter(|l| !l.is_empty()).count()
+}
+
 fn main() -> Result<()> {
     start_day(DAY);
 
@@ -20,7 +24,7 @@ fn main() -> Result<()> {
 
     fn part1<R: BufRead>(reader: R) -> Result<usize> {
         // TODO: Solve Part 1 of the puzzle
-        let answer = reader.lines().flatten().count();
+        let answer = parse_input(reader);
         Ok(answer)
     }
 
