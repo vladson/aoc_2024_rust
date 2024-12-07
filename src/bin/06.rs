@@ -4,6 +4,8 @@ use code_timing_macros::time_snippet;
 use const_format::concatcp;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::iter::{Cycle, Enumerate, Peekable};
+use std::vec::IntoIter;
 
 const DAY: &str = "06";
 const INPUT_FILE: &str = concatcp!("input/", DAY, ".txt");
@@ -25,7 +27,7 @@ const TEST: &str = "\
 enum Cell {
     Obstacle,
     Empty,
-    Path,
+    Path(u8),
     Guard,
 }
 
@@ -39,6 +41,53 @@ impl Cell {
                 panic!("unknown")
             }
         }
+    }
+}
+
+struct Guard {
+    position: (i32, i32),
+    dir: u8,
+    _m: i32,
+    _n: i32,
+    _director: Peekable<Cycle<Enumerate<IntoIter<(i32, i32)>>>>,
+}
+
+impl Guard {
+    fn new(position: (i32, i32), m: usize, n: usize) -> Guard {
+        let mut director = vec![(-1, 0), (0, 1), (1, 0), (0, -1)]
+            .into_iter()
+            .enumerate()
+            .cycle()
+            .peekable();
+        Self{
+            position: (position.0 as i32, position.1 as i32),
+            dir: director.peek().unwrap().0 as u8,
+            _m: m as i32,
+            _n: n as i32,
+            _director: director
+        }
+    }
+
+    fn next(&mut self) -> Option<(usize, usize)> {
+        let (_, dir) = self._director.peek().unwrap(); 
+        let (i, j) = (self.position.0 + dir.0, self.position.1 + dir.1);
+        if i < 0 || j < 0 || i >= self._m || j >= self._n {
+            None
+        } else {
+            Some((i as usize, j as usize))
+        }
+    }
+    
+    fn turn(&mut self) {
+        self._director.next();
+        self.dir = (self._director.peek().unwrap().0 % 4) as u8
+    }
+    
+    fn step(&mut self) {
+        match self.next() {
+            Some(pos) => self.position = (pos.0 as i32, pos.1 as i32),
+            None => panic!("Attempted to step into the void")
+        }    
     }
 }
 
@@ -68,38 +117,26 @@ fn main() -> Result<()> {
     println!("=== Part 1 ===");
 
     fn part1<R: BufRead>(reader: R) -> Result<usize> {
-        let (mut guard, mut grid) = parse_input(reader);
-        let (m, n) = (grid.len() as i32, grid[0].len() as i32);
-        let mut direction = vec![(-1, 0), (0, 1), (1, 0), (0, -1)]
-            .into_iter()
-            .cycle()
-            .peekable();
-        fn step(pos: (i32, i32), dir: &(i32, i32), m: i32, n: i32) -> Option<(i32, i32)> {
-            let (i, j) = (pos.0 + dir.0, pos.1 + dir.1);
-            if i < 0 || j < 0 || i >= m || j >= n {
-                None
-            } else {
-                Some((i, j))
-            }
-        }
-        grid[guard.0 as usize][guard.1 as usize] = Cell::Path;
+        let (guard, mut grid) = parse_input(reader);
+        let mut guard = Guard::new(guard, grid.len(), grid[0].len());
+        grid[guard.position.0 as usize][guard.position.1 as usize] = Cell::Path(0);
         let mut path = 1;
         loop {
-            let next = step(guard, direction.peek().unwrap(), m, n);
+            let next = guard.next();
             match next {
                 None => break,
-                Some(next) => match grid[next.0 as usize][next.1 as usize] {
+                Some(next) => match grid[next.0][next.1] {
                     Cell::Obstacle => {
-                        direction.next();
+                        guard.turn();
                     },
                     Cell::Guard => panic!("WTF"),
-                    Cell::Path => {
-                        guard = next;
+                    Cell::Path(_) => {
+                        guard.step();
                     },
                     Cell::Empty => {
                         path += 1;
-                        grid[next.0 as usize][next.1 as usize] = Cell::Path;
-                        guard = next;
+                        grid[next.0][next.1] = Cell::Path(guard.dir);
+                        guard.step();
                     }
                 },
             }
@@ -114,9 +151,15 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
+    println!("\n=== Part 2 ===");
+
     // fn part2<R: BufRead>(reader: R) -> Result<usize> {
+    //     // Navigate the route saving the direction of path. Cycle is possible if after placing an obstacle
+    //     // paths will merge. That means that we either just crossed the path, or turning around will
+    //     // meet the path.
+    //     let (mut guard, mut grid) = parse_input(reader);
+    //     let (m, n) = (grid.len() as i32, grid[0].len() as i32);
+    //
     //     Ok(0)
     // }
     //
