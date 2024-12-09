@@ -32,6 +32,7 @@ type Calibration = (usize, Vec<usize>);
 enum Operator {
     Addition,
     Multiplication,
+    Concatenation
 }
 
 fn cartesian_product<T>(options: &[T], positions: usize) -> Vec<Vec<T>>
@@ -55,7 +56,19 @@ where
 
 fn is_valid1(c: &Calibration) -> bool {
     for operators in cartesian_product(
-        &vec![Operator::Addition, Operator::Multiplication],
+        &[Operator::Addition, Operator::Multiplication],
+        c.1.len() - 1,
+    ) {
+        if compute(operators, c.1.clone()) == c.0 {
+            return true;
+        }
+    }
+    false
+}
+
+fn is_valid2(c: &Calibration) -> bool {
+    for operators in cartesian_product(
+        &[Operator::Addition, Operator::Multiplication, Operator::Concatenation],
         c.1.len() - 1,
     ) {
         if compute(operators, c.1.clone()) == c.0 {
@@ -74,6 +87,9 @@ fn compute(operators: Vec<Operator>, mut operands: Vec<usize>) -> usize {
             match operator {
                 Operator::Addition => a + b,
                 Operator::Multiplication => a * b,
+                Operator::Concatenation => {
+                    (a.to_string() + &b.to_string()).parse().unwrap()
+                }
             }
         })
 }
@@ -119,18 +135,35 @@ fn main() -> Result<()> {
     //endregion
 
     //region Part 2
-    // println!("\n=== Part 2 ===");
-    //
-    // fn part2<R: BufRead>(reader: R) -> Result<usize> {
-    //     Ok(0)
-    // }
-    //
-    // assert_eq!(0, part2(BufReader::new(TEST.as_bytes()))?);
-    //
-    // let input_file = BufReader::new(File::open(INPUT_FILE)?);
-    // let result = time_snippet!(part2(input_file)?);
-    // println!("Result = {}", result);
+    println!("\n=== Part 2 ===");
+    
+    fn part2<R: BufRead>(reader: R) -> Result<usize> {
+        let answer = parse_input(reader)
+            .iter()
+            .filter(|&c| is_valid2(c))
+            .fold(0, |acc, c| acc + c.0);
+        Ok(answer)
+    }
+    
+    assert_eq!(11387, part2(BufReader::new(TEST.as_bytes()))?);
+    
+    let input_file = BufReader::new(File::open(INPUT_FILE)?);
+    let result = time_snippet!(part2(input_file)?);
+    println!("Result = {}", result);
     //endregion
 
     Ok(())
+}
+
+mod tests {
+    #[allow(unused_imports)]
+    use super::*;
+
+    #[test]
+    fn test_compute() {
+        assert_eq!(compute(vec![Operator::Addition], vec![1, 2]), 3);
+        assert_eq!(compute(vec![Operator::Multiplication], vec![1, 2]), 2);
+        assert_eq!(compute(vec![Operator::Concatenation], vec![1, 2]), 12);
+        assert_eq!(compute(vec![Operator::Concatenation], vec![1212344123, 212323]), 1212344123212323);
+    }
 }
